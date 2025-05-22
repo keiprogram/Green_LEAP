@@ -63,21 +63,25 @@ st.markdown(
 # Excelデータを読み込む関数（緑リープ用）
 @st.cache_data
 def load_data():
-    file_paths = [
-        "見出語・用例リスト(Part 1).xlsx",
-        "見出語・用例リスト(Part 2).xlsx",
-        "見出語・用例リスト(Part 3).xlsx",
-        "見出語・用例リスト(Part 4).xlsx",
-    ]
+    # リポジトリ内のPart 1〜4ファイルを自動検出
+    import glob, os
+    pattern = os.path.join("**", "見出語・用例リスト(Part *.xlsx)")
+    file_paths = glob.glob(pattern, recursive=True)
+    if not file_paths:
+        st.error("Excelファイルが見つかりませんでした。ファイル名を確認してください。")
+        return pd.DataFrame(columns=["Group","No.","単語","CEFR","語の意味","用例（英語）","用例（日本語）"])
     dfs = []
-    for fp in file_paths:
+    for fp in sorted(file_paths):
         df = pd.read_excel(fp)
-        # 必要な最初の7列だけを使用
         df = df.iloc[:, :7]
-        # 列名を統一
-        df.columns = ["Group", "No.", "単語", "CEFR", "語の意味", "用例（英語）", "用例（日本語）"][:df.shape[1]]
+        df.columns = ["Group","No.","単語","CEFR","語の意味","用例（英語）","用例（日本語）"][:df.shape[1]]
         dfs.append(df)
     combined_df = pd.concat(dfs, ignore_index=True)
+    # No.列を数値化
+    combined_df['No.'] = pd.to_numeric(combined_df['No.'], errors='coerce')
+    combined_df = combined_df.dropna(subset=['No.'])
+    combined_df['No.'] = combined_df['No.'].astype(int)
+    return combined_df
     # 'No.'列を数値化して不正データを除去
     combined_df['No.'] = pd.to_numeric(combined_df['No.'], errors='coerce')
     combined_df = combined_df.dropna(subset=['No.'])
