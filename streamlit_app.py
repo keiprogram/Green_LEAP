@@ -2,87 +2,63 @@ import streamlit as st
 import pandas as pd
 import random
 
-# ページ設定
-st.set_page_config(page_title="緑リープ英単語テスト", layout="centered")
-
-# カスタムCSS
-st.markdown("""
-    <style>
-        body { background-color: #e9f5f2; }
-        .main { color: #2c3e50; font-family: 'Arial'; }
-        .stButton>button {
-            background-color: #27ae60;
-            color: white;
-            font-weight: bold;
-            border-radius: 10px;
-        }
-        .stRadio>div>label {
-            font-size: 16px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
+# タイトルと説明
+st.set_page_config(page_title="緑リープ暗記アプリ", layout="wide")
 st.title("🌿 緑リープ英単語テスト")
+st.markdown("Part 1〜4の単語から出題されます。範囲を選んでテストを開始してください。")
 
-# Excelファイル読み込み
-# Excelファイル読み込み
+# アップロード済みファイルのパス
+FILE_PATHS = [
+    "リープベーシック見出語・用例リスト(Part 1).xlsx",
+    "リープベーシック見出語・用例リスト(Part 2).xlsx",
+    "リープベーシック見出語・用例リスト(Part 3).xlsx",
+    "リープベーシック見出語・用例リスト(Part 4).xlsx"
+]
+
+@st.cache_data
 def load_data():
-    files = [
-        "data/見出語・用例リスト(Part 1).xlsx",
-        "data/見出語・用例リスト(Part 2).xlsx",
-        "data/見出語・用例リスト(Part 3).xlsx",
-        "data/見出語・用例リスト(Part 4).xlsx"
-    ]
-    df_all = pd.concat([pd.read_excel(f) for f in files], ignore_index=True)
-    df_all.columns = [str(col).strip() for col in df_all.columns]  # 修正点
+    dfs = []
+    for file in FILE_PATHS:
+        df = pd.read_excel(file)
+        df.columns = [str(c).strip() for c in df.columns]  # 列名の空白除去
+        dfs.append(df)
+    df_all = pd.concat(dfs, ignore_index=True)
     return df_all
 
+# データ読み込み
+df = load_data()
 
-# 出題範囲選択
-start = st.number_input("開始No.", min_value=1, max_value=int(df["No."].max()), value=1)
-end = st.number_input("終了No.", min_value=int(start), max_value=int(df["No."].max()), value=int(start)+9)
+# 列名確認（デバッグ用）
+# st.write("列名:", df.columns.tolist())
 
-# モード選択
-mode = st.radio("出題モードを選んでください", ("英語 → 日本語", "日本語 → 英語"))
+# 出題範囲設定（Group No. に基づく）
+min_no = int(df["Group No."].min())
+max_no = int(df["Group No."].max())
+start = st.number_input("開始No.", min_value=min_no, max_value=max_no, value=min_no)
+end = st.number_input("終了No.", min_value=start, max_value=max_no, value=min(start+9, max_no))
+question_count = st.slider("出題数", min_value=1, max_value=20, value=5)
 
 # 出題データ抽出
-quiz_df = df[(df["No."] >= start) & (df["No."] <= end)].reset_index(drop=True)
+df_range = df[(df["Group No."] >= start) & (df["Group No."] <= end)].reset_index(drop=True)
 
-if st.button("テストを開始！"):
-    score = 0
-    wrong_answers = []
+if st.button("テスト開始"):
+    if df_range.empty:
+        st.warning("この範囲には単語が存在しません。")
+    else:
+        quiz_data = df_range.sample(n=min(question_count, len(df_range))).reset_index(drop=True)
+        score = 0
 
-    for i in range(len(quiz_df)):
-        row = quiz_df.iloc[i]
+        for i, row in quiz_data.iterrows():
+            st.markdown(f"### Q{i+1}: {row['語の意味']} に当てはまる英単語は？")
+            user_input = st.text_input(f"あなたの答え（Q{i+1}）", key=f"input_{i}")
 
-        if mode == "英語 → 日本語":
-            question = row["単語"]
-            answer = row["語の意味"]
-            choices = df["語の意味"].dropna().sample(3).tolist()
-        else:
-            question = row["語の意味"]
-            answer = row["単語"]
-            choices = df["単語"].dropna().sample(3).tolist()
-
-        if answer not in choices:
-            choices.append(answer)
-        random.shuffle(choices)
-
-        st.markdown(f"### Q{i+1}: {question}")
-        user_answer = st.radio("選択肢:", choices, key=i)
-
-        if user_answer == answer:
-            st.success("正解！")
-            score += 1
-        else:
-            st.error(f"不正解… 正解は: {answer}")
-            wrong_answers.append((question, answer))
+            if user_input:
+                correct = row["単語"].strip().lower()
+                if user_input.strip().lower() == correct:
+                    st.success("正解！")
+                    score += 1
+                else:
+                    st.error(f"不正解。正解は **{correct}** です。")
 
         st.markdown("---")
-
-    st.markdown(f"## 🎉 あなたのスコア: {score} / {len(quiz_df)}")
-
-    if wrong_answers:
-        st.markdown("### ❌ 間違えた問題一覧")
-        for q, a in wrong_answers:
-            st.markdown(f"- **{q}** → {a}")
+        st.subheader(f"✅ 正解数: {score} / {len(quiz_data)}")
