@@ -25,6 +25,7 @@ st.markdown("""
 st.title("🌿 緑リープ英単語テスト")
 
 # Excelファイル読み込み
+# Excelファイル読み込み
 def load_data():
     files = [
         "data/見出語・用例リスト(Part 1).xlsx",
@@ -33,10 +34,9 @@ def load_data():
         "data/見出語・用例リスト(Part 4).xlsx"
     ]
     df_all = pd.concat([pd.read_excel(f) for f in files], ignore_index=True)
-    df_all = df_all.rename(columns=lambda x: x.strip())  # 列名の余計な空白を削除
+    df_all.columns = [str(col).strip() for col in df_all.columns]  # 修正点
     return df_all
 
-df = load_data()
 
 # 出題範囲選択
 start = st.number_input("開始No.", min_value=1, max_value=int(df["No."].max()), value=1)
