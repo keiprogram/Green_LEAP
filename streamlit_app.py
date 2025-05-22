@@ -2,63 +2,83 @@ import streamlit as st
 import pandas as pd
 import random
 
-# タイトルと説明
-st.set_page_config(page_title="緑リープ暗記アプリ", layout="wide")
-st.title("🌿 緑リープ英単語テスト")
-st.markdown("Part 1〜4の単語から出題されます。範囲を選んでテストを開始してください。")
+# ページ設定
+st.set_page_config(page_title="緑リープ英単語テスト", layout="wide")
 
-# アップロード済みファイルのパス
+# タイトル
+st.title("🌿 緑リープ英単語テスト")
+st.markdown("Part1〜4 の緑リープ単語帳から出題します。範囲を選んで「テスト開始」を押してください。")
+
+# 緑リープ用ファイルパス
 FILE_PATHS = [
-    "リープベーシック見出語・用例リスト(Part 1).xlsx",
-    "リープベーシック見出語・用例リスト(Part 2).xlsx",
-    "リープベーシック見出語・用例リスト(Part 3).xlsx",
-    "リープベーシック見出語・用例リスト(Part 4).xlsx"
+    "見出語・用例リスト(Part 1).xlsx",
+    "見出語・用例リスト(Part 2).xlsx",
+    "見出語・用例リスト(Part 3).xlsx",
+    "見出語・用例リスト(Part 4).xlsx",
 ]
 
 @st.cache_data
 def load_data():
     dfs = []
-    for file in FILE_PATHS:
-        df = pd.read_excel(file)
-        df.columns = [str(c).strip() for c in df.columns]  # 列名の空白除去
+    for fp in FILE_PATHS:
+        df = pd.read_excel(fp)
+        # 列名を文字列化・トリム
+        df.columns = [str(c).strip() for c in df.columns]
         dfs.append(df)
-    df_all = pd.concat(dfs, ignore_index=True)
-    return df_all
+    return pd.concat(dfs, ignore_index=True)
 
 # データ読み込み
 df = load_data()
 
-# 列名確認（デバッグ用）
-# st.write("列名:", df.columns.tolist())
+# デバッグ：列名確認
+# st.write("Columns:", df.columns.tolist())
 
-# 出題範囲設定（Group No. に基づく）
+# 範囲設定（Group No. の最小・最大値で制限）
 min_no = int(df["Group No."].min())
 max_no = int(df["Group No."].max())
 start = st.number_input("開始No.", min_value=min_no, max_value=max_no, value=min_no)
-end = st.number_input("終了No.", min_value=start, max_value=max_no, value=min(start+9, max_no))
-question_count = st.slider("出題数", min_value=1, max_value=20, value=5)
+end   = st.number_input("終了No.", min_value=start, max_value=max_no, value=min(start+9, max_no))
+qcount = st.slider("出題数", 1, 20, 5)
 
-# 出題データ抽出
-df_range = df[(df["Group No."] >= start) & (df["Group No."] <= end)].reset_index(drop=True)
+# モード選択
+mode = st.radio("出題形式を選んでください", ("英語→日本語", "日本語→英語"))
+
+# 抽出
+quiz_df = df[(df["Group No."] >= start) & (df["Group No."] <= end)].reset_index(drop=True)
 
 if st.button("テスト開始"):
-    if df_range.empty:
-        st.warning("この範囲には単語が存在しません。")
+    if quiz_df.empty:
+        st.warning("指定範囲に単語がありません。")
     else:
-        quiz_data = df_range.sample(n=min(question_count, len(df_range))).reset_index(drop=True)
         score = 0
+        wrong = []
+        sample_df = quiz_df.sample(n=min(qcount, len(quiz_df))).reset_index(drop=True)
 
-        for i, row in quiz_data.iterrows():
-            st.markdown(f"### Q{i+1}: {row['語の意味']} に当てはまる英単語は？")
-            user_input = st.text_input(f"あなたの答え（Q{i+1}）", key=f"input_{i}")
+        for i, row in sample_df.iterrows():
+            q_text = row["単語"] if mode=="英語→日本語" else row["語の意味"]
+            correct = row["語の意味"] if mode=="英語→日本語" else row["単語"]
 
-            if user_input:
-                correct = row["単語"].strip().lower()
-                if user_input.strip().lower() == correct:
-                    st.success("正解！")
-                    score += 1
-                else:
-                    st.error(f"不正解。正解は **{correct}** です。")
+            # 選択肢生成（正解＋3つランダム）
+            choices = list(
+                df[("語の意味" if mode=="英語→日本語" else "単語")].dropna().sample(3)
+            )
+            choices.append(correct)
+            random.shuffle(choices)
 
-        st.markdown("---")
-        st.subheader(f"✅ 正解数: {score} / {len(quiz_data)}")
+            st.markdown(f"**Q{i+1}.** {q_text}")
+            ans = st.radio("", choices, key=i)
+
+            if ans == correct:
+                st.success("✅ 正解！")
+                score += 1
+            else:
+                st.error(f"❌ 不正解。正解は **{correct}** です。")
+                wrong.append((q_text, correct))
+
+            st.markdown("---")
+
+        st.subheader(f"📊 スコア: {score} / {len(sample_df)}")
+        if wrong:
+            st.markdown("### ❗️ 間違えた問題")
+            for q, c in wrong:
+                st.markdown(f"- **{q}** → {c}")
