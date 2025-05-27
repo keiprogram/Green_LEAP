@@ -117,8 +117,11 @@ st.sidebar.markdown(
 filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) &
                              (words_df['No.'] <= selected_range[1])]
 
-# 画像表示（必要に応じて有効化）
-# st.image("/data/English.png")
+image_path = os.path.join("data", "English.png")
+if os.path.exists(image_path):
+    st.image(image_path)
+else:
+    st.warning("画像ファイルが見つかりません: " + image_path)
 st.title("緑ープ英単語テスト")
 st.text("英単語テストができます")
 
