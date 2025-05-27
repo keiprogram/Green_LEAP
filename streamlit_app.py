@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 # アプリの設定
-st.set_page_config(page_title="/data/Enhanced Basic Vocabulary Test")  # page_iconは必要に応じて追加
+st.set_page_config(page_title="緑⁻プ英単語テスト")  # page_iconは必要に応じて追加
 
 # カスタムCSS
 st.markdown(
