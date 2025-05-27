@@ -106,7 +106,7 @@ st.sidebar.markdown(
         <p>こちらのアプリもお試しください</p>
         <a href="https://leap-test-app.streamlit.app/" target="_blank" 
         style="background-color: #6c757d; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold;">
-        アプリを試す
+        LEAP Basicテストアプリを試す
         </a>
     </div>
     """,
