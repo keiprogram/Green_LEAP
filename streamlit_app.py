@@ -30,10 +30,10 @@ st.markdown(
 
 # ファイルパス設定（Streamlit Cloudでは /mount/data）
 part_files = {
-    "Part 1": "/mnt/data/part1.xlsx",
-    "Part 2": "/mnt/data/part2.xlsx",
-    "Part 3": "/mnt/data/part3.xlsx",
-    "Part 4": "/mnt/data/part4.xlsx",
+    "Part 1": "/data/part1.xlsx",
+    "Part 2": "/data/part2.xlsx",
+    "Part 3": "/data/part3.xlsx",
+    "Part 4": "/data/part4.xlsx",
 }
 
 # データ読み込み関数（必要な列のみ抽出）
