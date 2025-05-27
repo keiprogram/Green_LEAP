@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 # アプリの設定
-st.set_page_config(page_title="Enhanced Basic Vocabulary Test")  # page_iconは必要に応じて追加
+st.set_page_config(page_title="/data/Enhanced Basic Vocabulary Test")  # page_iconは必要に応じて追加
 
 # カスタムCSS
 st.markdown(
@@ -119,7 +119,7 @@ filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) &
 
 # 画像表示（必要に応じて有効化）
 # st.image("/data/English.png")
-st.title("英単語テスト")
+st.title("緑ープ英単語テスト")
 st.text("英単語テストができます")
 
 # テスト開始
