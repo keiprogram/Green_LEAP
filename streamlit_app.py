@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
 
 # アプリの設定
-st.set_page_config(page_title="Enhanced Basic Vocabulary Test", page_icon='English Logo.png')
+st.set_page_config(page_title="Enhanced Basic Vocabulary Test")  # page_iconは必要に応じて追加
 
 # カスタムCSS
 st.markdown(
@@ -63,22 +64,27 @@ st.markdown(
 # Excelデータを読み込む関数
 @st.cache_data
 def load_data():
-    file_paths = [
-        "リープベーシック見出語・用例リスト(Part 1).xlsx",
-        "リープベーシック見出語・用例リスト(Part 2).xlsx",
-        "リープベーシック見出語・用例リスト(Part 3).xlsx",
-        "リープベーシック見出語・用例リスト(Part 4).xlsx",
-    ]
+    data_dir = "data"
+    file_names = ["part1.xlsx", "part2.xlsx", "part3.xlsx", "part4.xlsx"]
+    file_paths = [os.path.join(data_dir, file_name) for file_name in file_names]
     dataframes = []
+    
     for i, file_path in enumerate(file_paths, 1):
+        if not os.path.exists(file_path):
+            st.error(f"ファイルが見つかりません: {file_path}")
+            return pd.DataFrame()
         df = pd.read_excel(file_path)
         df['Group'] = f'Part{i}'  # Group列を追加
         dataframes.append(df)
+    
     combined_df = pd.concat(dataframes, ignore_index=True)
     combined_df.columns = ['No.', '単語', 'CEFR', '語の意味', '用例（英語）', '用例（日本語）', 'Group']
     return combined_df
 
 words_df = load_data()
+
+if words_df.empty:
+    st.stop()
 
 # サイドバー設定
 st.sidebar.title("テスト設定")
@@ -111,7 +117,7 @@ st.sidebar.markdown(
 filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) &
                              (words_df['No.'] <= selected_range[1])]
 
-# 画像表示（必要に応じてコメントアウト解除）
+# 画像表示（必要に応じて有効化）
 # st.image("English.png")
 st.title("英単語テスト")
 st.text("英単語テストができます")
