@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # アプリの設定
-st.set_page_config(page_title="Enhanced Basic Vocabulary Test")
+st.set_page_config(page_title="Enhanced Basic Vocabulary Test", page_icon='English Logo.png')
 
 # カスタムCSS
 st.markdown(
@@ -33,7 +33,7 @@ st.markdown(
         border-radius: 10px;
         padding: 20px;
         margin: 20px auto;
-        box-shadow: 0 4px 8px 0, 0, 0, 0.1);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     .results-table {
         margin: 20px auto;
@@ -60,19 +60,23 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# サンプルデータ
+# Excelデータを読み込む関数
 @st.cache_data
 def load_data():
-    data = {
-        'Group': ['1', '1', '1', '2', '2'],
-        'No.': [1, 2, 3, 4, 5],
-        '単語': ['apple', 'book', 'cat', 'dog', 'egg'],
-        'CEFR': ['A1', 'A1', 'A2', 'A1', 'A2'],
-        '語の意味': ['リンゴ', '本', '猫', '犬', '卵'],
-        '用例（英語）': ['I eat an apple.', 'I read a book.', 'The cat is cute.', 'The dog runs.', 'I cook an egg.'],
-        '用例（日本語）': ['私はリンゴを食べる。', '私は本を読む。', '猫はかわいい。', '犬は走る。', '私は卵を料理する。']
-    }
-    return pd.DataFrame(data)
+    file_paths = [
+        "リープベーシック見出語・用例リスト(Part 1).xlsx",
+        "リープベーシック見出語・用例リスト(Part 2).xlsx",
+        "リープベーシック見出語・用例リスト(Part 3).xlsx",
+        "リープベーシック見出語・用例リスト(Part 4).xlsx",
+    ]
+    dataframes = []
+    for i, file_path in enumerate(file_paths, 1):
+        df = pd.read_excel(file_path)
+        df['Group'] = f'Part{i}'  # Group列を追加
+        dataframes.append(df)
+    combined_df = pd.concat(dataframes, ignore_index=True)
+    combined_df.columns = ['No.', '単語', 'CEFR', '語の意味', '用例（英語）', '用例（日本語）', 'Group']
+    return combined_df
 
 words_df = load_data()
 
@@ -80,14 +84,14 @@ words_df = load_data()
 st.sidebar.title("テスト設定")
 test_type = st.sidebar.radio("テスト形式を選択", ['英語→日本語', '日本語→英語'], key="test_type")
 
-# 単語範囲選択
-ranges = [(i + 1, i + 5) for i in range(0, 5, 5)]  # サンプルデータ用に縮小
+# 単語範囲選択（No.1〜No.1600、100単語単位）
+ranges = [(i + 1, i + 100) for i in range(0, 1600, 100)]
 range_labels = [f"No.{start}〜No.{end}" for start, end in ranges]
 selected_range_label = st.sidebar.selectbox("単語範囲を選択", range_labels)
 selected_range = ranges[range_labels.index(selected_range_label)]
 
-# 出題問題数
-num_questions = st.sidebar.slider("出題問題数を選択", 1, 5, 3)  # サンプルデータ用に縮小
+# 出題問題数の選択
+num_questions = st.sidebar.slider("出題問題数を選択", 1, 50, 10)
 
 # リンクボタン
 st.sidebar.markdown(
@@ -107,6 +111,8 @@ st.sidebar.markdown(
 filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) &
                              (words_df['No.'] <= selected_range[1])]
 
+# 画像表示（必要に応じてコメントアウト解除）
+# st.image("English.png")
 st.title("英単語テスト")
 st.text("英単語テストができます")
 
