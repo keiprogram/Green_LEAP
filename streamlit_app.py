@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 # アプリの設定
-st.set_page_config(page_title="緑⁻プ英単語テスト")  # page_iconは必要に応じて追加
+st.set_page_config(page_title="緑⁻プ英単語テスト", page_icon="📝")
 
 # カスタムCSS
 st.markdown(
@@ -86,9 +86,19 @@ words_df = load_data()
 if words_df.empty:
     st.stop()
 
+# セッション状態の初期化
+if 'wrong_answers_list' not in st.session_state:
+    st.session_state.wrong_answers_list = []
+if 'correct_answers_list' not in st.session_state:
+    st.session_state.correct_answers_list = []
+if 'test_started' not in st.session_state:
+    st.session_state.test_started = False
+if 'finished' not in st.session_state:
+    st.session_state.finished = False
+
 # サイドバー設定
 st.sidebar.title("テスト設定")
-test_type = st.sidebar.radio("テスト形式を選択", ['英語→日本語', '日本語→英語'], key="test_type")
+test_type = st.sidebar.radio("テスト形式を選択", ['英語→日本語', '日本語→英語', '間違えた問題'], key="test_type")
 
 # 単語範囲選択（No.1〜No.1600、100単語単位）
 ranges = [(i + 1, i + 100) for i in range(0, 1600, 100)]
@@ -114,74 +124,122 @@ st.sidebar.markdown(
 )
 
 # データ抽出
-filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) &
-                             (words_df['No.'] <= selected_range[1])]
-
-image_path = os.path.join("data", "English.png")
-if os.path.exists(image_path):
-    st.image(image_path)
+if test_type == "間違えた問題" and st.session_state.wrong_answers_list:
+    filtered_words_df = pd.DataFrame(st.session_state.wrong_answers_list, 
+                                    columns=['No.', '単語', 'CEFR', '語の意味', '用例（英語）', '用例（日本語）', 'Group'])
 else:
-    st.warning("画像ファイルが見つかりません: " + image_path)
-st.title("緑ープ英単語テスト")
-st.text("英単語テストができます")
+    filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) & 
+                               (words_df['No.'] <= selected_range[1])]
+
+# 単語数表示
+st.sidebar.write(f"選択範囲の単語数: {len(filtered_words_df)}")
 
 # テスト開始
 if st.button('テストを開始する'):
-    st.session_state.update({
-        'test_started': True,
-        'correct_answers': 0,
-        'current_question': 0,
-        'finished': False,
-        'wrong_answers': [],
-    })
-
-    selected_questions = filtered_words_df.sample(min(num_questions, len(filtered_words_df))).reset_index(drop=True)
-    st.session_state.update({
-        'selected_questions': selected_questions,
-        'total_questions': len(selected_questions),
-        'current_question_data': selected_questions.iloc[0],
-    })
-
-    if test_type == '英語→日本語':
-        options = list(selected_questions['語の意味'].sample(min(3, len(selected_questions))))
-        options.append(st.session_state.current_question_data['語の意味'])
+    if test_type == "間違えた問題" and not st.session_state.wrong_answers_list:
+        st.error("まだ間違えた問題がありません。通常のテストを行ってください。")
+    elif len(filtered_words_df) == 0:
+        st.error("選択した範囲に単語がありません。別の範囲を選択してください。")
+    elif len(filtered_words_df) < num_questions:
+        st.warning(f"選択した範囲の単語数（{len(filtered_words_df)}語）が指定した出題数（{num_questions}問）より少ないため、{len(filtered_words_df)}問でテストを開始します。")
+        st.session_state.update({
+            'test_started': True,
+            'correct_answers': 0,
+            'current_question': 0,
+            'finished': False,
+            'wrong_answers': [],
+            'selected_questions': filtered_words_df.sample(n=len(filtered_words_df)).reset_index(drop=True),
+            'total_questions': len(filtered_words_df)
+        })
     else:
-        options = list(selected_questions['単語'].sample(min(3, len(selected_questions))))
-        options.append(st.session_state.current_question_data['単語'])
-
-    np.random.shuffle(options)
-    st.session_state.options = options
-    st.session_state.answer = None
+        st.session_state.update({
+            'test_started': True,
+            'correct_answers': 0,
+            'current_question': 0,
+            'finished': False,
+            'wrong_answers': [],
+            'selected_questions': filtered_words_df.sample(n=num_questions).reset_index(drop=True),
+            'total_questions': num_questions
+        })
 
 # 質問更新
 def update_question(answer):
-    if test_type == '英語→日本語':
-        correct_answer = st.session_state.current_question_data['語の意味']
-        question_word = st.session_state.current_question_data['単語']
-    else:
-        correct_answer = st.session_state.current_question_data['単語']
-        question_word = st.session_state.current_question_data['語の意味']
+    if st.session_state.current_question >= st.session_state.total_questions:
+        st.session_state.finished = True
+        return
+    
+    current_data = st.session_state.current_question_data
+    correct_answer = current_data['語の意味'] if test_type in ['英語→日本語', '間違えた問題'] else current_data['単語']
+    question_word = current_data['単語'] if test_type in ['英語→日本語', '間違えた問題'] else current_data['語の意味']
 
     if answer == correct_answer:
         st.session_state.correct_answers += 1
+        # 正解を記録
+        st.session_state.correct_answers_list.append((
+            current_data['No.'], 
+            current_data['単語'], 
+            current_data['CEFR'], 
+            current_data['語の意味'], 
+            current_data['用例（英語）'], 
+            current_data['用例（日本語）'], 
+            current_data['Group']
+        ))
+        # 間違えた問題リストから削除
+        if test_type == "間違えた問題":
+            st.session_state.wrong_answers_list = [w for w in st.session_state.wrong_answers_list 
+                                                if w[0] != current_data['No.']]
     else:
+        # 間違えた問題または「わからない」を記録
         st.session_state.wrong_answers.append((
-            st.session_state.current_question_data['No.'],
-            question_word,
+            current_data['No.'], 
+            question_word, 
             correct_answer
         ))
+        if (current_data['No.'], current_data['単語'], current_data['CEFR'], 
+            current_data['語の意味'], current_data['用例（英語）'], 
+            current_data['用例（日本語）'], current_data['Group']) not in st.session_state.wrong_answers_list:
+            st.session_state.wrong_answers_list.append((
+                current_data['No.'], 
+                current_data['単語'], 
+                current_data['CEFR'], 
+                current_data['語の意味'], 
+                current_data['用例（英語）'], 
+                current_data['用例（日本語）'], 
+                current_data['Group']
+            ))
 
     st.session_state.current_question += 1
     if st.session_state.current_question < st.session_state.total_questions:
         st.session_state.current_question_data = st.session_state.selected_questions.iloc[st.session_state.current_question]
-        if test_type == '英語→日本語':
-            options = list(st.session_state.selected_questions['語の意味'].sample(min(3, len(st.session_state.selected_questions))))
-            options.append(st.session_state.current_question_data['語の意味'])
-        else:
-            options = list(st.session_state.selected_questions['単語'].sample(min(3, len(st.session_state.selected_questions))))
-            options.append(st.session_state.current_question_data['単語'])
-        np.random.shuffle(options)
-        st.session_state.options = options
+        pool = st.session_state.selected_questions['語の意味'] if test_type in ['英語→日本語', '間違えた問題'] else st.session_state.selected_questions['単語']
+        correct_answer = st.session_state.current_question_data['語の意味'] if test_type in ['英語→日本語', '間違えた問題'] else st.session_state.current_question_data['単語']
+        
+        # 選択肢生成（正解を除く最大4つの誤答）
+        choices = list(pool[pool != correct_answer].drop_duplicates().sample(n=min(4, len(pool[pool != correct_answer].drop_duplicates()))))
+        if correct_answer not in choices:
+            choices.append(correct_answer)
+        # 選択肢が4つ未満の場合、範囲内のデータから補充
+        if len(choices) < 4:
+            remaining_pool = pool[~pool.isin(choices)].drop_duplicates()
+            if len(remaining_pool) > 0:
+                additional_choices = list(remaining_pool.sample(n=min(4 - len(choices), len(remaining_pool))))
+                choices.extend(additional_choices)
+            # それでも足りない場合、正解済みの問題から補充
+            if len(choices) < 4 and st.session_state.correct_answers_list:
+                correct_df = pd.DataFrame(st.session_state.correct_answers_list, 
+                                       columns=['No.', '単語', 'CEFR', '語の意味', '用例（英語）', '用例（日本語）', 'Group'])
+                correct_pool = correct_df['語の意味'] if test_type in ['英語→日本語', '間違えた問題'] else correct_df['単語']
+                remaining_correct_pool = correct_pool[~correct_pool.isin(choices)].drop_duplicates()
+                if len(remaining_correct_pool) > 0:
+                    additional_choices = list(remaining_correct_pool.sample(n=min(4 - len(choices), len(remaining_correct_pool))))
+                    choices.extend(additional_choices)
+            # それでも足りない場合は警告
+            if len(choices) < 4:
+                st.warning("選択肢が不足しています。範囲内の単語数および正解済みの問題が少ないため、選択肢を4つに満たせませんでした。")
+        # 「わからない」を追加
+        choices.append("わからない")
+        np.random.shuffle(choices)
+        st.session_state.options = choices
         st.session_state.answer = None
     else:
         st.session_state.finished = True
@@ -211,9 +269,36 @@ def display_results():
         st.write("間違えた問題はありません。")
 
 # 問題表示
-if 'test_started' in st.session_state and not st.session_state.finished:
+if 'test_started' in st.session_state and st.session_state.test_started and not st.session_state.finished:
+    if 'current_question_data' not in st.session_state:
+        st.session_state.current_question_data = st.session_state.selected_questions.iloc[0]
+        pool = st.session_state.selected_questions['語の意味'] if test_type in ['英語→日本語', '間違えた問題'] else st.session_state.selected_questions['単語']
+        correct_answer = st.session_state.current_question_data['語の意味'] if test_type in ['英語→日本語', '間違えた問題'] else st.session_state.current_question_data['単語']
+        choices = list(pool[pool != correct_answer].drop_duplicates().sample(n=min(4, len(pool[pool != correct_answer].drop_duplicates()))))
+        if correct_answer not in choices:
+            choices.append(correct_answer)
+        if len(choices) < 4:
+            remaining_pool = pool[~pool.isin(choices)].drop_duplicates()
+            if len(remaining_pool) > 0:
+                additional_choices = list(remaining_pool.sample(n=min(4 - len(choices), len(remaining_pool))))
+                choices.extend(additional_choices)
+            if len(choices) < 4 and st.session_state.correct_answers_list:
+                correct_df = pd.DataFrame(st.session_state.correct_answers_list, 
+                                       columns=['No.', '単語', 'CEFR', '語の意味', '用例（英語）', '用例（日本語）', 'Group'])
+                correct_pool = correct_df['語の意味'] if test_type in ['英語→日本語', '間違えた問題'] else correct_df['単語']
+                remaining_correct_pool = correct_pool[~correct_pool.isin(choices)].drop_duplicates()
+                if len(remaining_correct_pool) > 0:
+                    additional_choices = list(remaining_correct_pool.sample(n=min(4 - len(choices), len(remaining_correct_pool))))
+                    choices.extend(additional_choices)
+            if len(choices) < 4:
+                st.warning("選択肢が不足しています。範囲内の単語数および正解済みの問題が少ないため、選択肢を4つに満たせませんでした。")
+        choices.append("わからない")
+        np.random.shuffle(choices)
+        st.session_state.options = choices
+        st.session_state.answer = None
+
     st.subheader(f"問題 {st.session_state.current_question + 1} / {st.session_state.total_questions} (問題番号: {st.session_state.current_question_data['No.']})")
-    st.subheader(f"{st.session_state.current_question_data['単語']}" if test_type == '英語→日本語' else f"{st.session_state.current_question_data['語の意味']}")
+    st.subheader(f"{st.session_state.current_question_data['単語']}" if test_type in ['英語→日本語', '間違えた問題'] else f"{st.session_state.current_question_data['語の意味']}")
 
     progress = (st.session_state.current_question + 1) / st.session_state.total_questions
     st.progress(progress)
@@ -225,3 +310,10 @@ if 'test_started' in st.session_state and not st.session_state.finished:
 else:
     if 'test_started' in st.session_state and st.session_state.finished:
         display_results()
+
+# 画像表示
+image_path = os.path.join("data", "English.png")
+if os.path.exists(image_path):
+    st.image(image_path)
+else:
+    st.warning("画像ファイルが見つかりません: " + image_path)
