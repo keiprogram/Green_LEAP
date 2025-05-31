@@ -78,7 +78,17 @@ def load_data():
         dataframes.append(df)
     
     combined_df = pd.concat(dataframes, ignore_index=True)
-    combined_df.columns = ['No.', '単語', 'CEFR', '語の意味', '用例（英語）', '用例（日本語）', 'Group']
+    # 実際の列名を確認
+    st.write("読み込んだデータの列名:", combined_df.columns.tolist())
+    # 列名を標準化（仮定: Excelファイルの列名が異なる可能性を考慮）
+    expected_columns = ['No.', '単語', 'CEFR', '語の意味', '用例（英語）', '用例（日本語）', 'Group']
+    if not all(col in combined_df.columns for col in expected_columns[:-1]):  # Groupは追加済みなので除外
+        # 列名が異なる場合、最初の6列を想定の列名に割り当て
+        if len(combined_df.columns) >= 6:
+            combined_df.columns = expected_columns
+        else:
+            st.error("Excelファイルの列数が不足しています。必要な列: No., 単語, CEFR, 語の意味, 用例（英語）, 用例（日本語）")
+            return pd.DataFrame()
     return combined_df
 
 words_df = load_data()
