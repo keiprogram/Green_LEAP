@@ -117,7 +117,7 @@ st.sidebar.markdown(
 filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) &
                              (words_df['No.'] <= selected_range[1])]
 
-image_path = os.path.join("data", "pasutann.png")
+image_path = os.path.join("data", "English.png")
 if os.path.exists(image_path):
     st.image(image_path)
 else:
