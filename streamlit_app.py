@@ -155,7 +155,7 @@ def start_test():
     st.session_state['current_question'] = 0
     st.session_state['finished'] = False
     st.session_state['wrong_answers'] = []
-    st.session_state['test_type'] = test_type  # 保存しておく
+ 
 
     # 範囲内から重複なしで問題を選択（過去出題済みは除外済み）
     n_select = min(num_questions, len(filtered_words_df))
