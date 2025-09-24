@@ -91,7 +91,7 @@ st.sidebar.title("テスト設定")
 test_type = st.sidebar.radio("テスト形式を選択", ['英語→日本語', '日本語→英語'], key="test_type")
 
 # 出題範囲のモード選択
-mode = st.sidebar.radio("出題範囲の選び方", ["100単語ごと", "自由指定"], key="range_mode")
+mode = st.sidebar.radio("出題範囲の選び方", ["100単語ごと", "範囲指定"], key="range_mode")
 
 if mode == "100単語ごと":
     ranges = [(i + 1, i + 100) for i in range(0, 1600, 100)]
