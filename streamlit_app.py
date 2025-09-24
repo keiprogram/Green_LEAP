@@ -118,7 +118,7 @@ if max_questions == 0:
     st.warning("選択範囲に単語が存在しません")
     st.stop()
 
-num_questions = st.sidebar.slider("出題問題数を選択", 1, min(50, max_questions), 10)
+num_questions = st.sidebar.slider("出題問題数を選択", 1, min(100, max_questions), 10)
 
 # リンクボタン
 st.sidebar.markdown(
