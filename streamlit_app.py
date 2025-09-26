@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 # --- アプリ設定 ---
-st.set_page_config(page_title="緑ープ英単語テスト")
+st.set_page_config(page_title="緑⁻プ英単語テスト")
 
 # カスタムCSS
 st.markdown(
@@ -116,11 +116,6 @@ if max_questions == 0:
 
 num_questions = st.sidebar.slider("出題問題数を選択", 1, min(50, max_questions), 10)
 
-# --- 出題履歴リセットボタン ---
-if st.sidebar.button("出題履歴をリセット"):
-    st.session_state["asked_questions"] = set()
-    st.success("出題履歴をリセットしました！")
-
 # リンクボタン
 st.sidebar.markdown(
     """
@@ -147,56 +142,45 @@ st.text("英単語テストができます")
 
 # --- テスト開始処理 ---
 def start_test():
+    # セッションを初期化
     st.session_state['test_started'] = True
     st.session_state['correct_answers'] = 0
     st.session_state['current_question'] = 0
     st.session_state['finished'] = False
     st.session_state['wrong_answers'] = []
-    st.session_state['test_type'] = test_type
+    st.session_state['test_type'] = test_type  # 保存しておく
 
-    if "asked_questions" not in st.session_state:
-        st.session_state["asked_questions"] = set()
-
-    # No. 重複除去
-    unique_df = filtered_words_df.drop_duplicates(subset="No.")
-
-    # 出題済みを除外
-    available_df = unique_df[~unique_df["No."].isin(st.session_state["asked_questions"])]
-
-    if available_df.empty:
-        st.warning("これ以上新しい問題はありません。範囲を変えてください。")
-        st.stop()
-
-    n_select = min(num_questions, len(available_df))
-    chosen_idx = np.random.choice(available_df.index, size=n_select, replace=False)
-    selected_questions = available_df.loc[chosen_idx].reset_index(drop=True)
-
-    # 出題履歴に追加
-    st.session_state["asked_questions"].update(selected_questions["No."].tolist())
-
+    # 範囲内から重複なしで問題を選択
+    n_select = min(num_questions, len(filtered_words_df))
+    chosen_idx = np.random.choice(filtered_words_df.index, size=n_select, replace=False)
+    selected_questions = filtered_words_df.loc[chosen_idx].reset_index(drop=True)
     st.session_state['selected_questions'] = selected_questions
     st.session_state['total_questions'] = len(selected_questions)
 
-    # 選択肢作成
+    # 各問題ごとに選択肢（正答 + ダミー）を作成して保存
     options_list = []
     for _, row in selected_questions.iterrows():
         if test_type == '英語→日本語':
-            pool = filtered_words_df[
-                (filtered_words_df['No.'] != row['No.']) &
-                (filtered_words_df['語の意味'] != row['語の意味'])
-            ]['語の意味'].dropna().unique().tolist()
+            # ダミーは「意味」から、正答は row['語の意味']
+            pool = filtered_words_df[filtered_words_df['No.'] != row['No.']]['語の意味'].dropna().unique().tolist()
             n_dummies = min(3, len(pool))
-            dummies = list(np.random.choice(pool, size=n_dummies, replace=False)) if n_dummies > 0 else []
+            # poolが空でないことを確認
+            if n_dummies > 0:
+                dummies = list(np.random.choice(pool, size=n_dummies, replace=False))
+            else:
+                dummies = []
             options = dummies + [row['語の意味']]
         else:
-            pool = filtered_words_df[
-                (filtered_words_df['No.'] != row['No.']) &
-                (filtered_words_df['単語'] != row['単語'])
-            ]['単語'].dropna().unique().tolist()
+            pool = filtered_words_df[filtered_words_df['No.'] != row['No.']]['単語'].dropna().unique().tolist()
             n_dummies = min(3, len(pool))
-            dummies = list(np.random.choice(pool, size=n_dummies, replace=False)) if n_dummies > 0 else []
+            if n_dummies > 0:
+                dummies = list(np.random.choice(pool, size=n_dummies, replace=False))
+            else:
+                dummies = []
             options = dummies + [row['単語']]
 
+        # 重複要素がないか最終チェック（念のため）
+        options = list(dict.fromkeys(options))
         np.random.shuffle(options)
         options_list.append(options)
 
@@ -228,11 +212,12 @@ def submit_answer():
     else:
         st.session_state['wrong_answers'].append((row['No.'], question_word, correct_answer))
 
+    # 次の問題へ
     st.session_state['current_question'] += 1
     if st.session_state['current_question'] >= st.session_state['total_questions']:
         st.session_state['finished'] = True
 
-# --- 結果表示 ---
+# --- 結果表示 --- 
 def display_results():
     correct_answers = st.session_state['correct_answers']
     total_questions = st.session_state['total_questions']
@@ -241,6 +226,7 @@ def display_results():
     st.write(f"テスト終了！正解数: {correct_answers}/{total_questions}")
     st.progress(accuracy)
 
+    st.write("正解数と不正解数")
     col1, col2 = st.columns(2)
     with col1:
         st.metric("正解数", correct_answers)
@@ -261,6 +247,7 @@ if st.session_state.get('test_started') and not st.session_state.get('finished')
     total = st.session_state['total_questions']
     row = st.session_state['selected_questions'].iloc[idx]
 
+    # 問題テキスト
     if st.session_state['test_type'] == '英語→日本語':
         question_text = row['単語']
     else:
@@ -272,13 +259,18 @@ if st.session_state.get('test_started') and not st.session_state.get('finished')
     progress = (idx + 1) / total
     st.progress(progress)
 
+    # 選択肢をセッションに保存してあるリストから取り出す
     options = st.session_state['options_list'][idx]
+    # ラジオで選ばせる
     st.radio("選択肢から1つ選んでください", options, key=f"radio_{idx}")
 
+    # 回答ボタン（押したら submit_answer を呼び出す）
     if st.button("回答する", key=f"submit_{idx}"):
         submit_answer()
+        # ボタンを押したら即座に再描画されるので次の問題が表示されます
 
 elif st.session_state.get('test_started') and st.session_state.get('finished'):
     display_results()
 else:
+    # 初期表示（テスト未開始）
     st.write("範囲と出題数を選んで「テストを開始する」を押してください。")
