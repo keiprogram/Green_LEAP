@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 # アプリの設定
-st.set_page_config(page_title="緑⁻プ英単語テスト")  # page_iconは必要に応じて追加
+st.set_page_config(page_title="緑⁻プ英単語テスト") 
 
 # カスタムCSS
 st.markdown(
@@ -86,18 +86,39 @@ words_df = load_data()
 if words_df.empty:
     st.stop()
 
-# サイドバー設定
+# --- サイドバー設定 ---
 st.sidebar.title("テスト設定")
 test_type = st.sidebar.radio("テスト形式を選択", ['英語→日本語', '日本語→英語'], key="test_type")
 
-# 単語範囲選択（No.1〜No.1600、100単語単位）
-ranges = [(i + 1, i + 100) for i in range(0, 1600, 100)]
-range_labels = [f"No.{start}〜No.{end}" for start, end in ranges]
-selected_range_label = st.sidebar.selectbox("単語範囲を選択", range_labels)
-selected_range = ranges[range_labels.index(selected_range_label)]
+# 出題範囲のモード選択
+mode = st.sidebar.radio("出題範囲の選び方", ["100単語ごと", "自由指定"], key="range_mode")
 
-# 出題問題数の選択
-num_questions = st.sidebar.slider("出題問題数を選択", 1, 50, 10)
+if mode == "100単語ごと":
+    ranges = [(i + 1, i + 100) for i in range(0, 1600, 100)]
+    range_labels = [f"No.{start}〜No.{end}" for start, end in ranges]
+    selected_range_label = st.sidebar.selectbox("単語範囲を選択", range_labels)
+    selected_range = ranges[range_labels.index(selected_range_label)]
+else:
+    min_no = int(words_df['No.'].min())
+    max_no = int(words_df['No.'].max())
+    st.sidebar.write(f"範囲を指定してください（{min_no}〜{max_no}）")
+    start_no = st.sidebar.number_input("開始No.", min_value=min_no, max_value=max_no, value=min_no)
+    end_no = st.sidebar.number_input("終了No.", min_value=min_no, max_value=max_no, value=min_no+99)
+    if start_no > end_no:
+        st.sidebar.error("開始No.は終了No.以下にしてください")
+    selected_range = (start_no, end_no)
+
+# 選択範囲の単語抽出
+filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) &
+                             (words_df['No.'] <= selected_range[1])]
+
+# 出題数（範囲内の単語数に合わせて最大値を制御）
+max_questions = len(filtered_words_df)
+if max_questions == 0:
+    st.warning("選択範囲に単語が存在しません")
+    st.stop()
+
+num_questions = st.sidebar.slider("出題問題数を選択", 1, min(50, max_questions), 10)
 
 # リンクボタン
 st.sidebar.markdown(
@@ -106,22 +127,20 @@ st.sidebar.markdown(
         <p>こちらのアプリもお試しください</p>
         <a href="https://leap-test-app.streamlit.app/" target="_blank" 
         style="background-color: #6c757d; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold;">
-        LEAP Basicテストアプリを試す
+        LEAP Basicテストアプリ
         </a>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# データ抽出
-filtered_words_df = words_df[(words_df['No.'] >= selected_range[0]) &
-                             (words_df['No.'] <= selected_range[1])]
-
+# 画像表示
 image_path = os.path.join("data", "English.png")
 if os.path.exists(image_path):
     st.image(image_path)
 else:
     st.warning("画像ファイルが見つかりません: " + image_path)
+
 st.title("緑ープ英単語テスト")
 st.text("英単語テストができます")
 
