@@ -118,6 +118,10 @@ if max_questions == 0:
     st.warning("選択範囲に単語が存在しません")
     st.stop()
 
+if max_questions < 4:
+    st.error("選択範囲に十分な単語がありません。範囲を広げてください。")
+    st.stop()
+
 num_questions = st.sidebar.slider("出題問題数を選択", 1, min(50, max_questions), 10)
 
 # リンクボタン
@@ -161,12 +165,17 @@ if st.button('テストを開始する'):
         'current_question_data': selected_questions.iloc[0],
     })
 
+    # 選択肢生成時に重複を排除
     if test_type == '英語→日本語':
-        options = list(selected_questions['語の意味'].sample(min(3, len(selected_questions))))
-        options.append(st.session_state.current_question_data['語の意味'])
+        other_options = selected_questions[
+            selected_questions['語の意味'] != selected_questions.iloc[0]['語の意味']
+        ]['語の意味'].sample(min(3, len(selected_questions) - 1)).tolist()
+        options = other_options + [selected_questions.iloc[0]['語の意味']]
     else:
-        options = list(selected_questions['単語'].sample(min(3, len(selected_questions))))
-        options.append(st.session_state.current_question_data['単語'])
+        other_options = selected_questions[
+            selected_questions['単語'] != selected_questions.iloc[0]['単語']
+        ]['単語'].sample(min(3, len(selected_questions) - 1)).tolist()
+        options = other_options + [selected_questions.iloc[0]['単語']]
 
     np.random.shuffle(options)
     st.session_state.options = options
@@ -193,12 +202,21 @@ def update_question(answer):
     st.session_state.current_question += 1
     if st.session_state.current_question < st.session_state.total_questions:
         st.session_state.current_question_data = st.session_state.selected_questions.iloc[st.session_state.current_question]
+        
+        # 選択肢生成時に重複を排除
         if test_type == '英語→日本語':
-            options = list(st.session_state.selected_questions['語の意味'].sample(min(3, len(st.session_state.selected_questions))))
-            options.append(st.session_state.current_question_data['語の意味'])
+            # 正解を除いた選択肢候補
+            other_options = st.session_state.selected_questions[
+                st.session_state.selected_questions['語の意味'] != st.session_state.current_question_data['語の意味']
+            ]['語の意味'].sample(min(3, len(st.session_state.selected_questions) - 1)).tolist()
+            options = other_options + [st.session_state.current_question_data['語の意味']]
         else:
-            options = list(st.session_state.selected_questions['単語'].sample(min(3, len(st.session_state.selected_questions))))
-            options.append(st.session_state.current_question_data['単語'])
+            # 正解を除いた選択肢候補
+            other_options = st.session_state.selected_questions[
+                st.session_state.selected_questions['単語'] != st.session_state.current_question_data['単語']
+            ]['単語'].sample(min(3, len(st.session_state.selected_questions) - 1)).tolist()
+            options = other_options + [st.session_state.current_question_data['単語']]
+        
         np.random.shuffle(options)
         st.session_state.options = options
         st.session_state.answer = None
