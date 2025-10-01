@@ -139,7 +139,7 @@ st.sidebar.markdown(
 )
 
 # 画像表示
-image_path = os.path.join("data", "English.png")
+image_path = os.path.join("data", "vocablary.png")
 if os.path.exists(image_path):
     st.image(image_path)
 else:
