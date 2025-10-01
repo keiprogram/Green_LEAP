@@ -146,7 +146,7 @@ else:
     st.warning("画像ファイルが見つかりません: " + image_path)
 
 st.title("緑ープ英単語テスト")
-st.text("必携英単語LEAPを使ったテストができます")
+st.text("必携英単語LEAPに対応したテストができます")
 
 # テスト開始
 if st.button('テストを開始する'):
