@@ -122,7 +122,7 @@ if max_questions < 4:
     st.error("選択範囲に十分な単語がありません。範囲を広げてください。")
     st.stop()
 
-num_questions = st.sidebar.slider("出題問題数を選択", 1, min(50, max_questions), 10)
+num_questions = st.sidebar.slider("出題問題数を選択", 1, min(100, max_questions), 10)
 
 # リンクボタン
 st.sidebar.markdown(
